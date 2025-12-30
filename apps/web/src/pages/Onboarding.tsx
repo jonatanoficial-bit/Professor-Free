@@ -1,4 +1,5 @@
 import React, { useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import Field from "../components/Field";
 import Button from "../components/Button";
 import Card from "../components/Card";
@@ -7,6 +8,8 @@ import { db, uid, setAuthToken } from "../lib/db";
 import { api } from "../lib/api";
 
 export default function Onboarding() {
+  const nav = useNavigate();
+
   const [name, setName] = useState("");
   const [mainInstitution, setMainInstitution] = useState("");
   const [email, setEmail] = useState("");
@@ -17,11 +20,10 @@ export default function Onboarding() {
   const [useOnline, setUseOnline] = useState(false);
   const [msg, setMsg] = useState("");
 
-  const canSubmit = useMemo(() => name.trim().length >= 2 && email.includes("@") && phone.trim().length >= 6, [
-    name,
-    email,
-    phone
-  ]);
+  const canSubmit = useMemo(
+    () => name.trim().length >= 2 && email.includes("@") && phone.trim().length >= 6,
+    [name, email, phone]
+  );
 
   async function saveLocal() {
     const data = professorSchema.parse({
@@ -47,14 +49,14 @@ export default function Onboarding() {
 
       if (useOnline) {
         if (password.length < 6) throw new Error("Senha precisa ter pelo menos 6 caracteres (online).");
-        // tenta registrar no servidor configurado
         const resp = await api.register(email, password, name);
         const token = resp?.token as string;
         if (!token) throw new Error("Servidor não retornou token.");
         await setAuthToken(token);
       }
 
-      window.location.href = "/";
+      // HashRouter: navegar sem quebrar base /Professor-Free/
+      nav("/");
     } catch (e: any) {
       setMsg(e?.message || String(e));
     }
@@ -65,7 +67,12 @@ export default function Onboarding() {
       <Card title="Cadastro do Professor (Primeiro Acesso)">
         <div className="space-y-4">
           <Field label="Nome">
-            <input className="input" value={name} onChange={(e) => setName(e.target.value)} placeholder="Seu nome" />
+            <input
+              className="input"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              placeholder="Seu nome"
+            />
           </Field>
 
           <Field label="Instituição principal (opcional)">
@@ -79,10 +86,20 @@ export default function Onboarding() {
 
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Field label="Email">
-              <input className="input" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="email@..." />
+              <input
+                className="input"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                placeholder="email@..."
+              />
             </Field>
             <Field label="Telefone">
-              <input className="input" value={phone} onChange={(e) => setPhone(e.target.value)} placeholder="(DDD) ..." />
+              <input
+                className="input"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="(DDD) ..."
+              />
             </Field>
           </div>
 
