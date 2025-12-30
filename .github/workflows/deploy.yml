@@ -2,28 +2,40 @@ name: Deploy Web (Vite) to GitHub Pages
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
 
-permissions:
+提醒permissions:
   contents: read
   pages: write
   id-token: write
+
+concurrency:
+  group: "pages"
+  cancel-in-progress: true
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
         with:
           node-version: 20
 
-      - run: npm install -g pnpm
-      - run: pnpm -C apps/web install
-      - run: pnpm -C apps/web build
+      - name: Install pnpm
+        run: npm install -g pnpm
 
-      - uses: actions/upload-pages-artifact@v3
+      - name: Install deps (web)
+        run: pnpm -C apps/web install
+
+      - name: Build (web)
+        run: pnpm -C apps/web build
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
         with:
           path: apps/web/dist
 
@@ -31,4 +43,5 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/deploy-pages@v4
+      - name: Deploy to GitHub Pages
+        uses: actions/deploy-pages@v4
