@@ -3,6 +3,7 @@ import react from "@vitejs/plugin-react";
 import { VitePWA } from "vite-plugin-pwa";
 
 export default defineConfig({
+  base: "/Professor-Free/",
   plugins: [
     react(),
     VitePWA({
@@ -15,10 +16,11 @@ export default defineConfig({
         theme_color: "#ff6a00",
         background_color: "#000000",
         display: "standalone",
-        start_url: "/",
+        scope: "/Professor-Free/",
+        start_url: "/Professor-Free/",
         icons: [
-          { src: "/icons/icon-192.png", sizes: "192x192", type: "image/png" },
-          { src: "/icons/icon-512.png", sizes: "512x512", type: "image/png" }
+          { src: "icons/icon-192.png", sizes: "192x192", type: "image/png" },
+          { src: "icons/icon-512.png", sizes: "512x512", type: "image/png" }
         ]
       }
     })
