@@ -15,7 +15,8 @@ const Views = {
 
 const toastEl = document.getElementById("toast");
 
-function showToast(msg, ms = 2200) {
+function showToast(msg, ms = 2000) {
+  if (!toastEl) return;
   toastEl.textContent = msg;
   toastEl.classList.remove("hidden");
   clearTimeout(showToast._t);
@@ -23,14 +24,20 @@ function showToast(msg, ms = 2200) {
 }
 
 function showView(key) {
-  Object.keys(Views).forEach(k => Views[k].classList.add("hidden"));
-  Views[key].classList.remove("hidden");
+  Object.keys(Views).forEach(k => Views[k]?.classList.add("hidden"));
+  Views[key]?.classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 function typeLabel(t) {
-  return ({ evolution: "Evolução", need: "Necessidade", repertoire: "Repertório", plan: "Plano" }[t] || t);
+  return ({
+    evolution: "Evolução",
+    need: "Necessidade",
+    repertoire: "Repertório",
+    plan: "Plano"
+  }[t] || t);
 }
+
 function fmtDate(ts) {
   const d = new Date(ts);
   return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
@@ -43,19 +50,17 @@ function esc(s) {
     .replaceAll("'", "&#039;");
 }
 
-/* Captura erros para não ficar tela preta */
-window.addEventListener("error", (e) => {
-  console.error("Erro global:", e?.error || e);
+/* Escudo: se der erro, não deixa tela vazia */
+window.addEventListener("error", () => {
   try {
-    showToast("Erro ao iniciar. Mostrando cadastro...");
+    showToast("Erro ao iniciar. Abrindo cadastro…");
     showView("onboarding");
   } catch (_) {}
 });
 
-window.addEventListener("unhandledrejection", (e) => {
-  console.error("Promise rejeitada:", e?.reason || e);
+window.addEventListener("unhandledrejection", () => {
   try {
-    showToast("Erro interno. Mostrando cadastro...");
+    showToast("Erro interno. Abrindo cadastro…");
     showView("onboarding");
   } catch (_) {}
 });
@@ -74,55 +79,59 @@ async function init() {
   window.addEventListener("beforeinstallprompt", (e) => {
     e.preventDefault();
     deferredPrompt = e;
-    document.getElementById("btnInstall").classList.remove("hidden");
+    document.getElementById("btnInstall")?.classList.remove("hidden");
   });
 
-  document.getElementById("btnInstall").addEventListener("click", async () => {
+  document.getElementById("btnInstall")?.addEventListener("click", async () => {
     if (!deferredPrompt) return;
     deferredPrompt.prompt();
     await deferredPrompt.userChoice;
     deferredPrompt = null;
-    document.getElementById("btnInstall").classList.add("hidden");
+    document.getElementById("btnInstall")?.classList.add("hidden");
   });
 
   // Back buttons
   document.querySelectorAll("[data-back]").forEach(btn => {
-    btn.addEventListener("click", () => showView("dashboard"));
+    btn.addEventListener("click", async () => {
+      await renderDashboard();
+      showView("dashboard");
+    });
   });
 
   // Export / Import
-  document.getElementById("btnExport").addEventListener("click", exportData);
-  document.getElementById("importFile").addEventListener("change", importData);
+  document.getElementById("btnExport")?.addEventListener("click", exportData);
+  document.getElementById("importFile")?.addEventListener("change", importData);
 
   // Dashboard nav
-  document.getElementById("goSchools").addEventListener("click", async () => { await renderSchools(); showView("schools"); });
-  document.getElementById("goClasses").addEventListener("click", async () => { await renderClasses(); showView("classes"); });
-  document.getElementById("goStudents").addEventListener("click", async () => { await renderStudents(); showView("students"); });
-  document.getElementById("goQuickNote").addEventListener("click", async () => { await renderQuickNote(); showView("quickNote"); });
-  document.getElementById("goAI").addEventListener("click", async () => { await renderAI(); showView("ai"); });
+  document.getElementById("goSchools")?.addEventListener("click", async () => { await renderSchools(); showView("schools"); });
+  document.getElementById("goClasses")?.addEventListener("click", async () => { await renderClasses(); showView("classes"); });
+  document.getElementById("goStudents")?.addEventListener("click", async () => { await renderStudents(); showView("students"); });
+  document.getElementById("goQuickNote")?.addEventListener("click", async () => { await renderQuickNote(); showView("quickNote"); });
+  document.getElementById("goAI")?.addEventListener("click", async () => { await renderAI(); showView("ai"); });
 
   // Teacher forms
-  document.getElementById("formTeacher").addEventListener("submit", onSaveTeacher);
-  document.getElementById("btnEditTeacher").addEventListener("click", async () => {
+  document.getElementById("formTeacher")?.addEventListener("submit", onSaveTeacher);
+  document.getElementById("btnEditTeacher")?.addEventListener("click", async () => {
     const t = await DB.getTeacher();
     const f = document.getElementById("formTeacherEdit");
+    if (!f) return;
     f.name.value = t?.name || "";
     f.email.value = t?.email || "";
     f.phone.value = t?.phone || "";
     showView("teacherEdit");
   });
-  document.getElementById("formTeacherEdit").addEventListener("submit", onEditTeacher);
+  document.getElementById("formTeacherEdit")?.addEventListener("submit", onEditTeacher);
 
   // School/Class/Student forms
-  document.getElementById("formSchool").addEventListener("submit", onAddSchool);
-  document.getElementById("formClass").addEventListener("submit", onAddClass);
-  document.getElementById("formStudent").addEventListener("submit", onAddStudent);
+  document.getElementById("formSchool")?.addEventListener("submit", onAddSchool);
+  document.getElementById("formClass")?.addEventListener("submit", onAddClass);
+  document.getElementById("formStudent")?.addEventListener("submit", onAddStudent);
 
   // Student search
-  document.getElementById("studentSearch").addEventListener("input", () => renderStudents());
+  document.getElementById("studentSearch")?.addEventListener("input", () => renderStudents());
 
   // Quick note types
-  document.getElementById("noteTypeSegment").addEventListener("click", (e) => {
+  document.getElementById("noteTypeSegment")?.addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-type]");
     if (!btn) return;
     document.querySelectorAll(".seg").forEach(s => s.classList.remove("active"));
@@ -130,16 +139,16 @@ async function init() {
   });
 
   // Quick note select changes
-  document.getElementById("quickClassSelect").addEventListener("change", async () => {
+  document.getElementById("quickClassSelect")?.addEventListener("change", async () => {
     await fillStudentsForQuickNote();
     await renderQuickRecentNotes();
   });
 
   // Save quick note
-  document.getElementById("btnSaveQuickNote").addEventListener("click", onSaveQuickNote);
+  document.getElementById("btnSaveQuickNote")?.addEventListener("click", onSaveQuickNote);
 
   // AI
-  document.getElementById("btnRunAI").addEventListener("click", onRunAI);
+  document.getElementById("btnRunAI")?.addEventListener("click", onRunAI);
 
   // Start
   const teacher = await DB.getTeacher();
@@ -150,7 +159,7 @@ async function init() {
     showView("dashboard");
   }
 
-  showToast("App carregado ✅", 1300);
+  showToast("App carregado ✅", 1200);
 }
 
 async function onSaveTeacher(e) {
@@ -183,6 +192,7 @@ async function onEditTeacher(e) {
   const name = (fd.get("name") || "").toString().trim();
   const email = (fd.get("email") || "").toString().trim();
   const phone = (fd.get("phone") || "").toString().trim();
+
   if (!name) return showToast("Nome é obrigatório.");
 
   await DB.setTeacher({ name, email, phone });
@@ -223,6 +233,7 @@ async function onAddSchool(e) {
   const name = (fd.get("name") || "").toString().trim();
   const notes = (fd.get("notes") || "").toString().trim();
   if (!name) return showToast("Nome obrigatório.");
+
   await DB.addSchool({ name, notes });
   e.target.reset();
   showToast("Escola adicionada.");
@@ -259,10 +270,8 @@ async function renderSchools() {
     btn.addEventListener("click", async () => {
       const schoolId = btn.getAttribute("data-del-school");
       const cnt = await DB.countClassesBySchool(schoolId);
-      if (cnt > 0) {
-        showToast("Não excluí: há turmas ligadas a essa escola.");
-        return;
-      }
+      if (cnt > 0) return showToast("Não excluí: há turmas ligadas a essa escola.");
+
       await DB.deleteSchool(schoolId);
       showToast("Escola removida.");
       await renderSchools();
@@ -276,8 +285,10 @@ async function onAddClass(e) {
   const name = (fd.get("name") || "").toString().trim();
   const schoolId = (fd.get("schoolId") || "").toString();
   const schedule = (fd.get("schedule") || "").toString().trim();
+
   if (!name) return showToast("Nome obrigatório.");
   if (!schoolId) return showToast("Selecione uma escola.");
+
   await DB.addClass({ name, schoolId, schedule });
   e.target.reset();
   showToast("Turma adicionada.");
@@ -291,9 +302,7 @@ async function renderClasses() {
 
   const sel = document.getElementById("classSchoolSelect");
   sel.innerHTML = schools.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
-  if (schools.length === 0) {
-    sel.innerHTML = `<option value="">Cadastre uma escola primeiro</option>`;
-  }
+  if (schools.length === 0) sel.innerHTML = `<option value="">Cadastre uma escola primeiro</option>`;
 
   const list = document.getElementById("classesList");
   if (classes.length === 0) {
@@ -304,6 +313,7 @@ async function renderClasses() {
   list.innerHTML = classes.map(c => {
     const sch = schools.find(s => s.id === c.schoolId);
     const count = students.filter(st => st.classId === c.id).length;
+
     return `
       <div class="item">
         <div class="item-title">${esc(c.name)}</div>
@@ -330,10 +340,8 @@ async function renderClasses() {
     btn.addEventListener("click", async () => {
       const classId = btn.getAttribute("data-del-class");
       const st = (await DB.listStudentsByClass(classId)).length;
-      if (st > 0) {
-        showToast("Não excluí: há alunos ligados a essa turma.");
-        return;
-      }
+      if (st > 0) return showToast("Não excluí: há alunos ligados a essa turma.");
+
       await DB.deleteClass(classId);
       showToast("Turma removida.");
       await renderClasses();
@@ -347,8 +355,10 @@ async function onAddStudent(e) {
   const name = (fd.get("name") || "").toString().trim();
   const classId = (fd.get("classId") || "").toString();
   const contact = (fd.get("contact") || "").toString().trim();
+
   if (!name) return showToast("Nome obrigatório.");
   if (!classId) return showToast("Selecione uma turma.");
+
   await DB.addStudent({ name, classId, contact });
   e.target.reset();
   showToast("Aluno adicionado.");
@@ -365,9 +375,7 @@ async function renderStudents() {
     const sch = schools.find(s => s.id === c.schoolId);
     return `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(sch?.name || "Escola")}</option>`;
   }).join("");
-  if (classes.length === 0) {
-    sel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
-  }
+  if (classes.length === 0) sel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
 
   const q = (document.getElementById("studentSearch").value || "").trim().toLowerCase();
   const filtered = q ? students.filter(s => s.name.toLowerCase().includes(q)) : students;
@@ -381,6 +389,7 @@ async function renderStudents() {
   list.innerHTML = filtered.map(s => {
     const cls = classes.find(c => c.id === s.classId);
     const sch = cls ? schools.find(sc => sc.id === cls.schoolId) : null;
+
     return `
       <div class="item">
         <div class="item-title">${esc(s.name)}</div>
@@ -558,12 +567,14 @@ async function exportData() {
     const payload = await DB.exportAll();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
+
     const a = document.createElement("a");
     a.href = url;
     a.download = `teacher-assist-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
+
     URL.revokeObjectURL(url);
     showToast("Backup exportado.");
   } catch (e) {
@@ -575,10 +586,12 @@ async function exportData() {
 async function importData(e) {
   const file = e.target.files?.[0];
   if (!file) return;
+
   try {
     const txt = await file.text();
     const payload = JSON.parse(txt);
     await DB.importAll(payload);
+
     showToast("Importação concluída.");
     await renderDashboard();
     showView("dashboard");
@@ -590,13 +603,12 @@ async function importData(e) {
   }
 }
 
-/* Inicialização com escudo */
 (async () => {
   try {
     await init();
   } catch (e) {
     console.error("Falha no init:", e);
-    showToast("Erro ao iniciar. Mostrando cadastro...");
+    showToast("Erro ao iniciar. Abrindo cadastro…");
     showView("onboarding");
   }
 })();
