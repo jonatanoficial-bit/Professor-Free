@@ -1,19 +1,16 @@
-const CACHE_NAME = "teacher-assist-v3";
+const CACHE_NAME = "teacher-assist-v10";
 const ASSETS = [
-  "./",
   "./index.html",
-
-  "./Professor-Free-main/styles.css?v=3",
-  "./Professor-Free-main/db.js?v=3",
-  "./Professor-Free-main/ai.js?v=3",
-  "./Professor-Free-main/app.js?v=3",
-  "./Professor-Free-main/manifest.webmanifest?v=3"
+  "./styles.css",
+  "./db.js",
+  "./ai.js",
+  "./app.js",
+  "./manifest.webmanifest",
+  "./service-worker.js"
 ];
 
 self.addEventListener("install", (event) => {
-  event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS))
-  );
+  event.waitUntil(caches.open(CACHE_NAME).then((cache) => cache.addAll(ASSETS)));
   self.skipWaiting();
 });
 
