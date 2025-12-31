@@ -1,11 +1,12 @@
-const CACHE_NAME = "teacher-assist-v10";
+const CACHE_NAME = "teacher-assist-v11";
 const ASSETS = [
-  "./index.html",
-  "./styles.css",
-  "./db.js",
-  "./ai.js",
-  "./app.js",
-  "./manifest.webmanifest",
+  "./",
+  "./index.html?v=11",
+  "./styles.css?v=11",
+  "./db.js?v=11",
+  "./ai.js?v=11",
+  "./app.js?v=11",
+  "./manifest.webmanifest?v=11",
   "./service-worker.js"
 ];
 
@@ -37,7 +38,7 @@ self.addEventListener("fetch", (event) => {
           caches.open(CACHE_NAME).then((cache) => cache.put(req, copy));
           return res;
         })
-        .catch(() => caches.match("./index.html"));
+        .catch(() => caches.match("./index.html?v=11"));
     })
   );
 });
