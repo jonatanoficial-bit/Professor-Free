@@ -4,12 +4,19 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <meta name="theme-color" content="#ff7a00" />
-  <title>Teacher Assist (Offline)</title>
+  <title>Teacher Assist</title>
 
-  <!-- Tudo apontando para a pasta do ZIP -->
-  <link rel="manifest" href="./Professor-Free-main/manifest.webmanifest?v=3">
-  <link rel="stylesheet" href="./Professor-Free-main/styles.css?v=3">
+  <!-- CSS CRÍTICO (NUNCA deixa todas as telas aparecendo juntas) -->
+  <style>
+    :root { color-scheme: dark; }
+    body { margin:0; background:#0b0b0e; color:#eaeaf0; font-family: system-ui, -apple-system, Segoe UI, Roboto, Arial; }
+    .hidden { display:none !important; }
+  </style>
+
+  <link rel="manifest" href="./manifest.webmanifest?v=11">
+  <link rel="stylesheet" href="./styles.css?v=11">
 </head>
+
 <body>
   <header class="topbar">
     <div class="brand">
@@ -19,6 +26,7 @@
         <div class="brand-sub">Offline/Online • Preto & Laranja</div>
       </div>
     </div>
+
     <div class="topbar-actions">
       <button id="btnInstall" class="btn btn-ghost hidden">Instalar</button>
       <button id="btnExport" class="btn btn-ghost">Exportar</button>
@@ -32,14 +40,6 @@
   <main class="container">
     <div id="toast" class="toast hidden"></div>
 
-    <noscript>
-      <section class="card">
-        <h1>Ative o JavaScript</h1>
-        <p class="muted">Este app precisa de JavaScript para funcionar.</p>
-      </section>
-    </noscript>
-
-    <!-- Onboarding -->
     <section id="viewOnboarding" class="card hidden">
       <h1>Cadastro do Professor</h1>
       <p class="muted">Preencha uma vez. Depois você pode editar e exportar seus dados a qualquer momento.</p>
@@ -73,7 +73,6 @@
       </form>
     </section>
 
-    <!-- Dashboard -->
     <section id="viewDashboard" class="hidden">
       <section class="card">
         <div class="row">
@@ -114,7 +113,6 @@
       </section>
     </section>
 
-    <!-- Schools -->
     <section id="viewSchools" class="card hidden">
       <div class="row">
         <h1>Escolas</h1>
@@ -137,7 +135,6 @@
       <div id="schoolsList" class="list"></div>
     </section>
 
-    <!-- Classes -->
     <section id="viewClasses" class="card hidden">
       <div class="row">
         <h1>Turmas</h1>
@@ -147,7 +144,7 @@
       <form id="formClass" class="grid compact">
         <div class="field">
           <label>Nome da turma</label>
-          <input required name="name" placeholder="Ex: 5º Ano A / Turma Violão Iniciante" />
+          <input required name="name" placeholder="Ex: 5º Ano A / Violão Iniciante" />
         </div>
         <div class="field">
           <label>Escola</label>
@@ -164,7 +161,6 @@
       <div id="classesList" class="list"></div>
     </section>
 
-    <!-- Students -->
     <section id="viewStudents" class="card hidden">
       <div class="row">
         <h1>Alunos</h1>
@@ -197,7 +193,6 @@
       <div id="studentsList" class="list"></div>
     </section>
 
-    <!-- Quick Note -->
     <section id="viewQuickNote" class="card hidden">
       <div class="row">
         <h1>Nota rápida (modo aula)</h1>
@@ -240,16 +235,13 @@
       <div id="quickRecentNotes" class="list"></div>
     </section>
 
-    <!-- AI -->
     <section id="viewAI" class="card hidden">
       <div class="row">
         <h1>IA & Insights (offline)</h1>
         <button class="btn btn-ghost" data-back>Voltar</button>
       </div>
 
-      <p class="muted">
-        Essa IA é local e funciona sem internet: faz resumos, alertas e projeções simples a partir das suas notas.
-      </p>
+      <p class="muted">IA local (sem internet): resumos, alertas e projeções simples a partir das suas notas.</p>
 
       <div class="grid compact">
         <div class="field">
@@ -263,7 +255,6 @@
       <div id="aiOutput" class="ai-output"></div>
     </section>
 
-    <!-- Edit Teacher -->
     <section id="viewTeacherEdit" class="card hidden">
       <div class="row">
         <h1>Editar cadastro</h1>
@@ -288,15 +279,12 @@
     </section>
 
     <footer class="footer">
-      <div class="muted">
-        PWA • Offline-first • Preto/Laranja • Feito para professor(a) (registrado ou autônomo)
-      </div>
+      <div class="muted">PWA • Offline-first • Preto/Laranja • Feito para professor(a)</div>
     </footer>
   </main>
 
-  <!-- JS também apontando para a pasta -->
-  <script src="./Professor-Free-main/db.js?v=3" defer></script>
-  <script src="./Professor-Free-main/ai.js?v=3" defer></script>
-  <script src="./Professor-Free-main/app.js?v=3" defer></script>
+  <script src="./db.js?v=11" defer></script>
+  <script src="./ai.js?v=11" defer></script>
+  <script src="./app.js?v=11" defer></script>
 </body>
 </html>
