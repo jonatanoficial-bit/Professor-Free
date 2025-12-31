@@ -1,0 +1,15 @@
+{
+  "version": 2,
+  "buildCommand": "bash ./vercel-build.sh",
+  "outputDirectory": "app_flutter/build/web",
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ]
+}
