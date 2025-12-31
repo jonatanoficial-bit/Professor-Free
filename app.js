@@ -15,41 +15,57 @@ const Views = {
 
 const toastEl = document.getElementById("toast");
 
-function showToast(msg, ms=1900){
+function showToast(msg, ms = 2200) {
   toastEl.textContent = msg;
   toastEl.classList.remove("hidden");
   clearTimeout(showToast._t);
-  showToast._t = setTimeout(()=> toastEl.classList.add("hidden"), ms);
+  showToast._t = setTimeout(() => toastEl.classList.add("hidden"), ms);
 }
 
-function showView(key){
+function showView(key) {
   Object.keys(Views).forEach(k => Views[k].classList.add("hidden"));
   Views[key].classList.remove("hidden");
   window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
-function typeLabel(t){
-  return ({evolution:"Evolução", need:"Necessidade", repertoire:"Repertório", plan:"Plano"}[t] || t);
+function typeLabel(t) {
+  return ({ evolution: "Evolução", need: "Necessidade", repertoire: "Repertório", plan: "Plano" }[t] || t);
 }
-function fmtDate(ts){
+function fmtDate(ts) {
   const d = new Date(ts);
-  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle:"short" });
+  return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
 }
 
-function esc(s){
+function esc(s) {
   return String(s || "")
-    .replaceAll("&","&amp;").replaceAll("<","&lt;")
-    .replaceAll(">","&gt;").replaceAll('"',"&quot;")
-    .replaceAll("'","&#039;");
+    .replaceAll("&", "&amp;").replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;").replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
-async function init(){
+/* Captura erros para não ficar tela preta */
+window.addEventListener("error", (e) => {
+  console.error("Erro global:", e?.error || e);
+  try {
+    showToast("Erro ao iniciar. Mostrando cadastro...");
+    showView("onboarding");
+  } catch (_) {}
+});
+
+window.addEventListener("unhandledrejection", (e) => {
+  console.error("Promise rejeitada:", e?.reason || e);
+  try {
+    showToast("Erro interno. Mostrando cadastro...");
+    showView("onboarding");
+  } catch (_) {}
+});
+
+async function init() {
   // Service Worker
   if ("serviceWorker" in navigator) {
     try {
       await navigator.serviceWorker.register("./service-worker.js");
     } catch (e) {
-      // Não quebra o app
       console.warn("SW falhou:", e);
     }
   }
@@ -79,15 +95,15 @@ async function init(){
   document.getElementById("importFile").addEventListener("change", importData);
 
   // Dashboard nav
-  document.getElementById("goSchools").addEventListener("click", async ()=> { await renderSchools(); showView("schools"); });
-  document.getElementById("goClasses").addEventListener("click", async ()=> { await renderClasses(); showView("classes"); });
-  document.getElementById("goStudents").addEventListener("click", async ()=> { await renderStudents(); showView("students"); });
-  document.getElementById("goQuickNote").addEventListener("click", async ()=> { await renderQuickNote(); showView("quickNote"); });
-  document.getElementById("goAI").addEventListener("click", async ()=> { await renderAI(); showView("ai"); });
+  document.getElementById("goSchools").addEventListener("click", async () => { await renderSchools(); showView("schools"); });
+  document.getElementById("goClasses").addEventListener("click", async () => { await renderClasses(); showView("classes"); });
+  document.getElementById("goStudents").addEventListener("click", async () => { await renderStudents(); showView("students"); });
+  document.getElementById("goQuickNote").addEventListener("click", async () => { await renderQuickNote(); showView("quickNote"); });
+  document.getElementById("goAI").addEventListener("click", async () => { await renderAI(); showView("ai"); });
 
   // Teacher forms
   document.getElementById("formTeacher").addEventListener("submit", onSaveTeacher);
-  document.getElementById("btnEditTeacher").addEventListener("click", async ()=>{
+  document.getElementById("btnEditTeacher").addEventListener("click", async () => {
     const t = await DB.getTeacher();
     const f = document.getElementById("formTeacherEdit");
     f.name.value = t?.name || "";
@@ -106,15 +122,15 @@ async function init(){
   document.getElementById("studentSearch").addEventListener("input", () => renderStudents());
 
   // Quick note types
-  document.getElementById("noteTypeSegment").addEventListener("click", (e)=>{
+  document.getElementById("noteTypeSegment").addEventListener("click", (e) => {
     const btn = e.target.closest("button[data-type]");
-    if(!btn) return;
-    document.querySelectorAll(".seg").forEach(s=> s.classList.remove("active"));
+    if (!btn) return;
+    document.querySelectorAll(".seg").forEach(s => s.classList.remove("active"));
     btn.classList.add("active");
   });
 
   // Quick note select changes
-  document.getElementById("quickClassSelect").addEventListener("change", async ()=> {
+  document.getElementById("quickClassSelect").addEventListener("change", async () => {
     await fillStudentsForQuickNote();
     await renderQuickRecentNotes();
   });
@@ -133,9 +149,11 @@ async function init(){
     await renderDashboard();
     showView("dashboard");
   }
+
+  showToast("App carregado ✅", 1300);
 }
 
-async function onSaveTeacher(e){
+async function onSaveTeacher(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const name = (fd.get("name") || "").toString().trim();
@@ -144,11 +162,10 @@ async function onSaveTeacher(e){
   const schoolName = (fd.get("school") || "").toString().trim();
   const city = (fd.get("city") || "").toString().trim();
 
-  if(!name) return showToast("Nome é obrigatório.");
+  if (!name) return showToast("Nome é obrigatório.");
 
   await DB.setTeacher({ name, email, phone });
 
-  // Se informou escola principal, cria escola automaticamente
   if (schoolName) {
     const schools = await DB.listSchools();
     const exists = schools.some(s => s.name.toLowerCase() === schoolName.toLowerCase());
@@ -160,13 +177,13 @@ async function onSaveTeacher(e){
   showView("dashboard");
 }
 
-async function onEditTeacher(e){
+async function onEditTeacher(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
   const name = (fd.get("name") || "").toString().trim();
   const email = (fd.get("email") || "").toString().trim();
   const phone = (fd.get("phone") || "").toString().trim();
-  if(!name) return showToast("Nome é obrigatório.");
+  if (!name) return showToast("Nome é obrigatório.");
 
   await DB.setTeacher({ name, email, phone });
   showToast("Atualizado.");
@@ -174,7 +191,7 @@ async function onEditTeacher(e){
   showView("dashboard");
 }
 
-async function renderDashboard(){
+async function renderDashboard() {
   const teacher = await DB.getTeacher();
   document.getElementById("helloTitle").textContent = `Olá, ${teacher?.name || "Professor(a)"}!`;
   document.getElementById("helloSub").textContent = teacher?.email || teacher?.phone
@@ -186,8 +203,8 @@ async function renderDashboard(){
   const students = await DB.listStudents();
 
   const html = latest.map(n => {
-    const cls = classes.find(c=> c.id === n.classId);
-    const st = n.studentId ? students.find(s=> s.id === n.studentId) : null;
+    const cls = classes.find(c => c.id === n.classId);
+    const st = n.studentId ? students.find(s => s.id === n.studentId) : null;
 
     return `
       <div class="item">
@@ -200,30 +217,30 @@ async function renderDashboard(){
   document.getElementById("latestNotes").innerHTML = html;
 }
 
-async function onAddSchool(e){
+async function onAddSchool(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const name = (fd.get("name")||"").toString().trim();
-  const notes = (fd.get("notes")||"").toString().trim();
-  if(!name) return showToast("Nome obrigatório.");
+  const name = (fd.get("name") || "").toString().trim();
+  const notes = (fd.get("notes") || "").toString().trim();
+  if (!name) return showToast("Nome obrigatório.");
   await DB.addSchool({ name, notes });
   e.target.reset();
   showToast("Escola adicionada.");
   await renderSchools();
 }
 
-async function renderSchools(){
+async function renderSchools() {
   const schools = await DB.listSchools();
   const classes = await DB.listClasses();
   const list = document.getElementById("schoolsList");
 
-  if(schools.length === 0){
+  if (schools.length === 0) {
     list.innerHTML = `<div class="muted">Cadastre uma escola para começar.</div>`;
     return;
   }
 
   list.innerHTML = schools.map(s => {
-    const count = classes.filter(c=> c.schoolId === s.id).length;
+    const count = classes.filter(c => c.schoolId === s.id).length;
     return `
       <div class="item">
         <div class="item-title">${esc(s.name)}</div>
@@ -239,10 +256,10 @@ async function renderSchools(){
   }).join("");
 
   list.querySelectorAll("[data-del-school]").forEach(btn => {
-    btn.addEventListener("click", async ()=>{
+    btn.addEventListener("click", async () => {
       const schoolId = btn.getAttribute("data-del-school");
       const cnt = await DB.countClassesBySchool(schoolId);
-      if(cnt > 0){
+      if (cnt > 0) {
         showToast("Não excluí: há turmas ligadas a essa escola.");
         return;
       }
@@ -253,41 +270,40 @@ async function renderSchools(){
   });
 }
 
-async function onAddClass(e){
+async function onAddClass(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const name = (fd.get("name")||"").toString().trim();
-  const schoolId = (fd.get("schoolId")||"").toString();
-  const schedule = (fd.get("schedule")||"").toString().trim();
-  if(!name) return showToast("Nome obrigatório.");
-  if(!schoolId) return showToast("Selecione uma escola.");
+  const name = (fd.get("name") || "").toString().trim();
+  const schoolId = (fd.get("schoolId") || "").toString();
+  const schedule = (fd.get("schedule") || "").toString().trim();
+  if (!name) return showToast("Nome obrigatório.");
+  if (!schoolId) return showToast("Selecione uma escola.");
   await DB.addClass({ name, schoolId, schedule });
   e.target.reset();
   showToast("Turma adicionada.");
   await renderClasses();
 }
 
-async function renderClasses(){
+async function renderClasses() {
   const schools = await DB.listSchools();
   const classes = await DB.listClasses();
   const students = await DB.listStudents();
 
-  // Fill select
   const sel = document.getElementById("classSchoolSelect");
-  sel.innerHTML = schools.map(s=> `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+  sel.innerHTML = schools.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
   if (schools.length === 0) {
     sel.innerHTML = `<option value="">Cadastre uma escola primeiro</option>`;
   }
 
   const list = document.getElementById("classesList");
-  if(classes.length === 0){
+  if (classes.length === 0) {
     list.innerHTML = `<div class="muted">Nenhuma turma cadastrada ainda.</div>`;
     return;
   }
 
   list.innerHTML = classes.map(c => {
-    const sch = schools.find(s=> s.id === c.schoolId);
-    const count = students.filter(st=> st.classId === c.id).length;
+    const sch = schools.find(s => s.id === c.schoolId);
+    const count = students.filter(st => st.classId === c.id).length;
     return `
       <div class="item">
         <div class="item-title">${esc(c.name)}</div>
@@ -303,18 +319,18 @@ async function renderClasses(){
     `;
   }).join("");
 
-  list.querySelectorAll("[data-open-quick]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
+  list.querySelectorAll("[data-open-quick]").forEach(btn => {
+    btn.addEventListener("click", async () => {
       await renderQuickNote(btn.getAttribute("data-open-quick"));
       showView("quickNote");
     });
   });
 
-  list.querySelectorAll("[data-del-class]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
+  list.querySelectorAll("[data-del-class]").forEach(btn => {
+    btn.addEventListener("click", async () => {
       const classId = btn.getAttribute("data-del-class");
       const st = (await DB.listStudentsByClass(classId)).length;
-      if(st > 0){
+      if (st > 0) {
         showToast("Não excluí: há alunos ligados a essa turma.");
         return;
       }
@@ -325,46 +341,46 @@ async function renderClasses(){
   });
 }
 
-async function onAddStudent(e){
+async function onAddStudent(e) {
   e.preventDefault();
   const fd = new FormData(e.target);
-  const name = (fd.get("name")||"").toString().trim();
-  const classId = (fd.get("classId")||"").toString();
-  const contact = (fd.get("contact")||"").toString().trim();
-  if(!name) return showToast("Nome obrigatório.");
-  if(!classId) return showToast("Selecione uma turma.");
+  const name = (fd.get("name") || "").toString().trim();
+  const classId = (fd.get("classId") || "").toString();
+  const contact = (fd.get("contact") || "").toString().trim();
+  if (!name) return showToast("Nome obrigatório.");
+  if (!classId) return showToast("Selecione uma turma.");
   await DB.addStudent({ name, classId, contact });
   e.target.reset();
   showToast("Aluno adicionado.");
   await renderStudents();
 }
 
-async function renderStudents(){
+async function renderStudents() {
   const classes = await DB.listClasses();
   const schools = await DB.listSchools();
   const students = await DB.listStudents();
 
   const sel = document.getElementById("studentClassSelect");
-  sel.innerHTML = classes.map(c=> {
-    const sch = schools.find(s=> s.id === c.schoolId);
+  sel.innerHTML = classes.map(c => {
+    const sch = schools.find(s => s.id === c.schoolId);
     return `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(sch?.name || "Escola")}</option>`;
   }).join("");
-  if(classes.length === 0){
+  if (classes.length === 0) {
     sel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
   }
 
   const q = (document.getElementById("studentSearch").value || "").trim().toLowerCase();
-  const filtered = q ? students.filter(s=> s.name.toLowerCase().includes(q)) : students;
+  const filtered = q ? students.filter(s => s.name.toLowerCase().includes(q)) : students;
 
   const list = document.getElementById("studentsList");
-  if(filtered.length === 0){
+  if (filtered.length === 0) {
     list.innerHTML = `<div class="muted">Nenhum aluno encontrado.</div>`;
     return;
   }
 
   list.innerHTML = filtered.map(s => {
-    const cls = classes.find(c=> c.id === s.classId);
-    const sch = cls ? schools.find(sc=> sc.id === cls.schoolId) : null;
+    const cls = classes.find(c => c.id === s.classId);
+    const sch = cls ? schools.find(sc => sc.id === cls.schoolId) : null;
     return `
       <div class="item">
         <div class="item-title">${esc(s.name)}</div>
@@ -380,10 +396,10 @@ async function renderStudents(){
     `;
   }).join("");
 
-  list.querySelectorAll("[data-open-quick-student]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
+  list.querySelectorAll("[data-open-quick-student]").forEach(btn => {
+    btn.addEventListener("click", async () => {
       const studentId = btn.getAttribute("data-open-quick-student");
-      const student = (await DB.listStudents()).find(x=> x.id === studentId);
+      const student = (await DB.listStudents()).find(x => x.id === studentId);
       await renderQuickNote(student?.classId || "");
       await fillStudentsForQuickNote();
       document.getElementById("quickStudentSelect").value = studentId;
@@ -391,8 +407,8 @@ async function renderStudents(){
     });
   });
 
-  list.querySelectorAll("[data-del-student]").forEach(btn=>{
-    btn.addEventListener("click", async ()=>{
+  list.querySelectorAll("[data-del-student]").forEach(btn => {
+    btn.addEventListener("click", async () => {
       const studentId = btn.getAttribute("data-del-student");
       await DB.deleteStudent(studentId);
       showToast("Aluno removido.");
@@ -401,76 +417,73 @@ async function renderStudents(){
   });
 }
 
-async function renderQuickNote(preselectClassId = ""){
+async function renderQuickNote(preselectClassId = "") {
   const classes = await DB.listClasses();
   const schools = await DB.listSchools();
 
   const clsSel = document.getElementById("quickClassSelect");
-  clsSel.innerHTML = classes.map(c=>{
-    const sch = schools.find(s=> s.id === c.schoolId);
+  clsSel.innerHTML = classes.map(c => {
+    const sch = schools.find(s => s.id === c.schoolId);
     return `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(sch?.name || "Escola")}</option>`;
   }).join("");
 
-  if(classes.length === 0){
+  if (classes.length === 0) {
     clsSel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
     document.getElementById("quickStudentSelect").innerHTML = `<option value="">—</option>`;
     document.getElementById("quickRecentNotes").innerHTML = `<div class="muted">Cadastre turmas para usar o modo aula.</div>`;
     return;
   }
 
-  if(preselectClassId){
-    clsSel.value = preselectClassId;
-  }
+  if (preselectClassId) clsSel.value = preselectClassId;
 
   await fillStudentsForQuickNote();
   await renderQuickRecentNotes();
 }
 
-async function fillStudentsForQuickNote(){
+async function fillStudentsForQuickNote() {
   const classId = document.getElementById("quickClassSelect").value;
   const st = classId ? await DB.listStudentsByClass(classId) : [];
 
   const stSel = document.getElementById("quickStudentSelect");
   const base = `<option value="">— Nota geral da turma —</option>`;
-  stSel.innerHTML = base + st.map(s=> `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+  stSel.innerHTML = base + st.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
 }
 
-function currentNoteType(){
+function currentNoteType() {
   const active = document.querySelector(".seg.active");
   return active ? active.getAttribute("data-type") : "evolution";
 }
 
-async function onSaveQuickNote(){
+async function onSaveQuickNote() {
   const classId = document.getElementById("quickClassSelect").value;
-  if(!classId) return showToast("Selecione uma turma.");
+  if (!classId) return showToast("Selecione uma turma.");
 
   const studentId = document.getElementById("quickStudentSelect").value || "";
   const type = currentNoteType();
   const text = (document.getElementById("quickText").value || "").trim();
-
-  if(!text) return showToast("Escreva um texto rápido.");
+  if (!text) return showToast("Escreva um texto rápido.");
 
   await DB.addNote({ type, classId, studentId, text });
   document.getElementById("quickText").value = "";
 
   showToast("Nota salva.");
   await renderQuickRecentNotes();
-  await renderDashboard(); // atualiza “últimas notas”
+  await renderDashboard();
 }
 
-async function renderQuickRecentNotes(){
+async function renderQuickRecentNotes() {
   const classId = document.getElementById("quickClassSelect").value;
   const notes = classId ? await DB.listNotesByClass(classId, 20) : [];
   const students = await DB.listStudents();
 
   const box = document.getElementById("quickRecentNotes");
-  if(notes.length === 0){
+  if (notes.length === 0) {
     box.innerHTML = `<div class="muted">Sem notas ainda. Use os botões acima para registrar durante a aula.</div>`;
     return;
   }
 
-  box.innerHTML = notes.map(n=>{
-    const st = n.studentId ? students.find(s=> s.id === n.studentId) : null;
+  box.innerHTML = notes.map(n => {
+    const st = n.studentId ? students.find(s => s.id === n.studentId) : null;
     return `
       <div class="item">
         <div class="item-title">${esc(typeLabel(n.type))}${st ? ` • ${esc(st.name)}` : ""}</div>
@@ -480,28 +493,26 @@ async function renderQuickRecentNotes(){
   }).join("");
 }
 
-async function renderAI(){
+async function renderAI() {
   const classes = await DB.listClasses();
   const sel = document.getElementById("aiClassSelect");
-  sel.innerHTML = classes.map(c=> `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
-  if(classes.length === 0){
-    sel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
-  }
+  sel.innerHTML = classes.map(c => `<option value="${esc(c.id)}">${esc(c.name)}</option>`).join("");
+  if (classes.length === 0) sel.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
   document.getElementById("aiOutput").innerHTML = `<div class="muted">Selecione uma turma e clique em “Gerar insights”.</div>`;
 }
 
-async function onRunAI(){
+async function onRunAI() {
   const classId = document.getElementById("aiClassSelect").value;
-  if(!classId) return showToast("Selecione uma turma.");
+  if (!classId) return showToast("Selecione uma turma.");
 
   const out = document.getElementById("aiOutput");
   out.innerHTML = `<div class="muted">Processando insights...</div>`;
 
-  try{
+  try {
     const res = await runLocalAI({ classId });
-
     const counts = res.last30Counts;
-    const html = `
+
+    out.innerHTML = `
       <div class="ai-box">
         <h3>Resumo (últimos 30 dias) • ${esc(res.className)}</h3>
         <div class="badge"><strong>Saúde</strong> ${esc(String(res.health))}/100</div>
@@ -522,68 +533,56 @@ async function onRunAI(){
 
       <div class="ai-box">
         <h3>Alunos que podem precisar de atenção (últimos 14 dias)</h3>
-        ${
-          res.topNeeds.length === 0
-            ? `<div class="muted">Nenhum alerta forte por necessidades. (Ou você registrou poucas notas “Necessidade”.)</div>`
-            : `<ul>${res.topNeeds.map(x=> `<li>${esc(x.student)} — ${esc(String(x.count))} registros de necessidade</li>`).join("")}</ul>`
+        ${res.topNeeds.length === 0
+          ? `<div class="muted">Nenhum alerta forte por necessidades.</div>`
+          : `<ul>${res.topNeeds.map(x => `<li>${esc(x.student)} — ${esc(String(x.count))} registros</li>`).join("")}</ul>`
         }
       </div>
 
       <div class="ai-box">
         <h3>Sugestão rápida para próxima aula</h3>
-        <ul>${res.suggestion.map(s=> `<li>${esc(s)}</li>`).join("")}</ul>
-      </div>
-
-      <div class="ai-box">
-        <h3>Projeção (últimos dias)</h3>
-        ${
-          res.series.length === 0
-            ? `<div class="muted">Sem série de dados suficiente ainda. Continue registrando notas.</div>`
-            : `<div class="muted">Score diário (heurístico). Quanto mais evolução/repertório/plano, maior; necessidades reduzem.</div>
-               <ul>${res.series.map(p=> `<li>${esc(p.day)} — score <strong>${esc(String(p.score))}</strong></li>`).join("")}</ul>`
-        }
+        <ul>${res.suggestion.map(s => `<li>${esc(s)}</li>`).join("")}</ul>
       </div>
     `;
 
-    out.innerHTML = html;
     showToast("Insights gerados.");
   } catch (e) {
     console.error(e);
-    out.innerHTML = `<div class="muted">Falha ao gerar insights. Verifique se há notas cadastradas.</div>`;
+    out.innerHTML = `<div class="muted">Falha ao gerar insights. Cadastre notas e tente novamente.</div>`;
     showToast("Erro na IA.");
   }
 }
 
-async function exportData(){
-  try{
+async function exportData() {
+  try {
     const payload = await DB.exportAll();
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `teacher-assist-backup-${new Date().toISOString().slice(0,10)}.json`;
+    a.download = `teacher-assist-backup-${new Date().toISOString().slice(0, 10)}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
     URL.revokeObjectURL(url);
     showToast("Backup exportado.");
-  } catch(e){
+  } catch (e) {
     console.error(e);
     showToast("Falha ao exportar.");
   }
 }
 
-async function importData(e){
+async function importData(e) {
   const file = e.target.files?.[0];
-  if(!file) return;
-  try{
+  if (!file) return;
+  try {
     const txt = await file.text();
     const payload = JSON.parse(txt);
     await DB.importAll(payload);
     showToast("Importação concluída.");
     await renderDashboard();
     showView("dashboard");
-  } catch(err){
+  } catch (err) {
     console.error(err);
     showToast("Arquivo inválido.");
   } finally {
@@ -591,4 +590,13 @@ async function importData(e){
   }
 }
 
-init();
+/* Inicialização com escudo */
+(async () => {
+  try {
+    await init();
+  } catch (e) {
+    console.error("Falha no init:", e);
+    showToast("Erro ao iniciar. Mostrando cadastro...");
+    showView("onboarding");
+  }
+})();
