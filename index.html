@@ -1,0 +1,294 @@
+<!doctype html>
+<html lang="pt-br">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#ff7a00" />
+  <title>Teacher Assist (Offline)</title>
+
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <div class="dot"></div>
+      <div>
+        <div class="brand-title">Teacher Assist</div>
+        <div class="brand-sub">Offline/Online • Preto & Laranja</div>
+      </div>
+    </div>
+    <div class="topbar-actions">
+      <button id="btnInstall" class="btn btn-ghost hidden">Instalar</button>
+      <button id="btnExport" class="btn btn-ghost">Exportar</button>
+      <label class="btn btn-ghost filebtn">
+        Importar
+        <input id="importFile" type="file" accept="application/json" />
+      </label>
+    </div>
+  </header>
+
+  <main class="container">
+    <!-- Toast -->
+    <div id="toast" class="toast hidden"></div>
+
+    <!-- Onboarding -->
+    <section id="viewOnboarding" class="card hidden">
+      <h1>Cadastro do Professor</h1>
+      <p class="muted">Preencha uma vez. Depois você pode editar e exportar seus dados a qualquer momento.</p>
+
+      <form id="formTeacher" class="grid">
+        <div class="field">
+          <label>Nome</label>
+          <input required name="name" placeholder="Ex: Prof. João Silva" />
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input name="email" type="email" placeholder="ex: prof@email.com" />
+        </div>
+        <div class="field">
+          <label>Telefone</label>
+          <input name="phone" placeholder="(xx) xxxxx-xxxx" />
+        </div>
+
+        <div class="divider"></div>
+
+        <div class="field">
+          <label>Instituição / Escola principal</label>
+          <input name="school" placeholder="Ex: Escola Municipal X" />
+        </div>
+        <div class="field">
+          <label>Cidade (opcional)</label>
+          <input name="city" placeholder="Ex: São Paulo" />
+        </div>
+
+        <button class="btn btn-primary" type="submit">Salvar e continuar</button>
+      </form>
+    </section>
+
+    <!-- Dashboard -->
+    <section id="viewDashboard" class="hidden">
+      <section class="card">
+        <div class="row">
+          <div>
+            <h1 id="helloTitle">Olá!</h1>
+            <p class="muted" id="helloSub">Organize turmas, alunos e anotações com poucos toques.</p>
+          </div>
+          <button id="btnEditTeacher" class="btn btn-ghost">Editar cadastro</button>
+        </div>
+
+        <div class="quick-actions">
+          <button id="goQuickNote" class="tile">
+            <div class="tile-title">+ Nota rápida</div>
+            <div class="tile-sub">Evolução • Necessidade • Repertório • Plano</div>
+          </button>
+          <button id="goSchools" class="tile">
+            <div class="tile-title">Escolas</div>
+            <div class="tile-sub">Mais de um local de trabalho</div>
+          </button>
+          <button id="goClasses" class="tile">
+            <div class="tile-title">Turmas</div>
+            <div class="tile-sub">Criar e gerenciar</div>
+          </button>
+          <button id="goStudents" class="tile">
+            <div class="tile-title">Alunos</div>
+            <div class="tile-sub">Cadastrar e acessar rápido</div>
+          </button>
+          <button id="goAI" class="tile">
+            <div class="tile-title">IA & Insights</div>
+            <div class="tile-sub">Resumos, alertas e projeções</div>
+          </button>
+        </div>
+      </section>
+
+      <section class="card">
+        <h2>Últimas notas</h2>
+        <div id="latestNotes" class="list"></div>
+      </section>
+    </section>
+
+    <!-- Schools -->
+    <section id="viewSchools" class="card hidden">
+      <div class="row">
+        <h1>Escolas</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <form id="formSchool" class="grid compact">
+        <div class="field">
+          <label>Nome da escola</label>
+          <input required name="name" placeholder="Ex: Escola Estadual Y" />
+        </div>
+        <div class="field">
+          <label>Observação</label>
+          <input name="notes" placeholder="Ex: Turno manhã / contato coordenação" />
+        </div>
+        <button class="btn btn-primary" type="submit">Adicionar</button>
+      </form>
+
+      <div class="divider"></div>
+      <div id="schoolsList" class="list"></div>
+    </section>
+
+    <!-- Classes -->
+    <section id="viewClasses" class="card hidden">
+      <div class="row">
+        <h1>Turmas</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <form id="formClass" class="grid compact">
+        <div class="field">
+          <label>Nome da turma</label>
+          <input required name="name" placeholder="Ex: 5º Ano A / Turma Violão Iniciante" />
+        </div>
+        <div class="field">
+          <label>Escola</label>
+          <select required name="schoolId" id="classSchoolSelect"></select>
+        </div>
+        <div class="field">
+          <label>Dias/horário (opcional)</label>
+          <input name="schedule" placeholder="Ex: Seg/Qua 14:00" />
+        </div>
+        <button class="btn btn-primary" type="submit">Adicionar</button>
+      </form>
+
+      <div class="divider"></div>
+      <div id="classesList" class="list"></div>
+    </section>
+
+    <!-- Students -->
+    <section id="viewStudents" class="card hidden">
+      <div class="row">
+        <h1>Alunos</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <form id="formStudent" class="grid compact">
+        <div class="field">
+          <label>Nome do aluno</label>
+          <input required name="name" placeholder="Ex: Maria Souza" />
+        </div>
+        <div class="field">
+          <label>Turma</label>
+          <select required name="classId" id="studentClassSelect"></select>
+        </div>
+        <div class="field">
+          <label>Contato/responsável (opcional)</label>
+          <input name="contact" placeholder="Ex: mãe: (xx) xxxxx-xxxx" />
+        </div>
+        <button class="btn btn-primary" type="submit">Adicionar</button>
+      </form>
+
+      <div class="divider"></div>
+      <div class="row">
+        <div class="field" style="flex:1">
+          <label>Buscar aluno</label>
+          <input id="studentSearch" placeholder="Digite para filtrar..." />
+        </div>
+      </div>
+      <div id="studentsList" class="list"></div>
+    </section>
+
+    <!-- Quick Note (Aula) -->
+    <section id="viewQuickNote" class="card hidden">
+      <div class="row">
+        <h1>Nota rápida (modo aula)</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <div class="grid compact">
+        <div class="field">
+          <label>Turma</label>
+          <select id="quickClassSelect"></select>
+        </div>
+
+        <div class="field">
+          <label>Aluno (opcional)</label>
+          <select id="quickStudentSelect">
+            <option value="">— Nota geral da turma —</option>
+          </select>
+        </div>
+
+        <div class="field">
+          <label>Tipo</label>
+          <div class="segmented" id="noteTypeSegment">
+            <button type="button" data-type="evolution" class="seg active">Evolução</button>
+            <button type="button" data-type="need" class="seg">Necessidade</button>
+            <button type="button" data-type="repertoire" class="seg">Repertório</button>
+            <button type="button" data-type="plan" class="seg">Plano</button>
+          </div>
+        </div>
+
+        <div class="field">
+          <label>Texto</label>
+          <textarea id="quickText" rows="5" placeholder="Ex: Hoje melhorou a postura. Precisa revisar acordes. Repertório: música X. Plano: revisar ritmo..."></textarea>
+        </div>
+
+        <button id="btnSaveQuickNote" class="btn btn-primary" type="button">Salvar nota</button>
+      </div>
+
+      <div class="divider"></div>
+      <h2>Notas recentes desta turma</h2>
+      <div id="quickRecentNotes" class="list"></div>
+    </section>
+
+    <!-- AI -->
+    <section id="viewAI" class="card hidden">
+      <div class="row">
+        <h1>IA & Insights (offline)</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <p class="muted">
+        Essa IA é local e funciona sem internet: faz resumos, alertas e projeções simples a partir das suas notas.
+      </p>
+
+      <div class="grid compact">
+        <div class="field">
+          <label>Turma</label>
+          <select id="aiClassSelect"></select>
+        </div>
+        <button id="btnRunAI" class="btn btn-primary" type="button">Gerar insights</button>
+      </div>
+
+      <div class="divider"></div>
+      <div id="aiOutput" class="ai-output"></div>
+    </section>
+
+    <!-- Edit Teacher -->
+    <section id="viewTeacherEdit" class="card hidden">
+      <div class="row">
+        <h1>Editar cadastro</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <form id="formTeacherEdit" class="grid">
+        <div class="field">
+          <label>Nome</label>
+          <input required name="name" />
+        </div>
+        <div class="field">
+          <label>E-mail</label>
+          <input name="email" type="email" />
+        </div>
+        <div class="field">
+          <label>Telefone</label>
+          <input name="phone" />
+        </div>
+        <button class="btn btn-primary" type="submit">Salvar</button>
+      </form>
+    </section>
+
+    <footer class="footer">
+      <div class="muted">
+        PWA • Offline-first • Preto/Laranja • Feito para professor(a) (registrado ou autônomo)
+      </div>
+    </footer>
+  </main>
+
+  <script src="db.js"></script>
+  <script src="ai.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
