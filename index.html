@@ -6,8 +6,8 @@
   <meta name="theme-color" content="#ff7a00" />
   <title>Teacher Assist (Offline)</title>
 
-  <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="styles.css">
+  <link rel="manifest" href="manifest.webmanifest?v=2">
+  <link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
   <header class="topbar">
@@ -29,8 +29,14 @@
   </header>
 
   <main class="container">
-    <!-- Toast -->
     <div id="toast" class="toast hidden"></div>
+
+    <noscript>
+      <section class="card">
+        <h1>Ative o JavaScript</h1>
+        <p class="muted">Este app precisa de JavaScript para funcionar (cadastro, turmas, alunos e modo aula).</p>
+      </section>
+    </noscript>
 
     <!-- Onboarding -->
     <section id="viewOnboarding" class="card hidden">
@@ -190,7 +196,7 @@
       <div id="studentsList" class="list"></div>
     </section>
 
-    <!-- Quick Note (Aula) -->
+    <!-- Quick Note -->
     <section id="viewQuickNote" class="card hidden">
       <div class="row">
         <h1>Nota rápida (modo aula)</h1>
@@ -222,7 +228,7 @@
 
         <div class="field">
           <label>Texto</label>
-          <textarea id="quickText" rows="5" placeholder="Ex: Hoje melhorou a postura. Precisa revisar acordes. Repertório: música X. Plano: revisar ritmo..."></textarea>
+          <textarea id="quickText" rows="5" placeholder="Ex: Hoje melhorou a postura..."></textarea>
         </div>
 
         <button id="btnSaveQuickNote" class="btn btn-primary" type="button">Salvar nota</button>
@@ -287,8 +293,9 @@
     </footer>
   </main>
 
-  <script src="db.js"></script>
-  <script src="ai.js"></script>
-  <script src="app.js"></script>
+  <!-- IMPORTANTE: defer + cache-bust -->
+  <script src="db.js?v=2" defer></script>
+  <script src="ai.js?v=2" defer></script>
+  <script src="app.js?v=2" defer></script>
 </body>
 </html>
