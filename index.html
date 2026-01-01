@@ -6,15 +6,15 @@
   <meta name="theme-color" content="#ff7a00" />
   <title>Teacher Assist</title>
 
-  <!-- CSS crítico: garante que hidden funcione mesmo se der problema -->
+  <!-- CSS crítico: garante hidden mesmo se der problema -->
   <style>
     :root{color-scheme:dark}
     body{margin:0;background:#0b0b0e;color:#eaeaf0;font-family:system-ui,-apple-system,Segoe UI,Roboto,Arial}
     .hidden{display:none!important}
   </style>
 
-  <link rel="manifest" href="./manifest.webmanifest?v=20">
-  <link rel="stylesheet" href="./styles.css?v=20">
+  <link rel="manifest" href="./manifest.webmanifest?v=21">
+  <link rel="stylesheet" href="./styles.css?v=21">
 </head>
 <body>
   <header class="topbar">
@@ -96,6 +96,20 @@
             <div class="tile-title">Alunos</div>
             <div class="tile-sub">Cadastro rápido</div>
           </button>
+
+          <button id="goAttendance" class="tile">
+            <div class="tile-title">Chamada</div>
+            <div class="tile-sub">Criar sessão e marcar presença</div>
+          </button>
+          <button id="goPlans" class="tile">
+            <div class="tile-title">Planos de aula</div>
+            <div class="tile-sub">Objetivos e atividades</div>
+          </button>
+          <button id="goReports" class="tile">
+            <div class="tile-title">Relatórios</div>
+            <div class="tile-sub">Por aluno: presença + notas</div>
+          </button>
+
           <button id="goQuickNote" class="tile">
             <div class="tile-title">+ Nota rápida</div>
             <div class="tile-sub">Evolução • Necessidade • Repertório • Plano</div>
@@ -197,6 +211,123 @@
       <div id="studentsList" class="list"></div>
     </section>
 
+    <!-- Chamada -->
+    <section id="viewAttendance" class="card hidden">
+      <div class="row">
+        <h1>Chamada</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <div class="grid compact">
+        <div class="field">
+          <label>Turma</label>
+          <select id="attClassSelect"></select>
+        </div>
+        <div class="field">
+          <label>Data</label>
+          <input id="attDate" type="date" />
+        </div>
+
+        <div class="row">
+          <button id="btnCreateSession" class="btn btn-primary" type="button">Criar sessão do dia</button>
+          <button id="btnOpenLastSession" class="btn btn-ghost" type="button">Abrir última sessão</button>
+        </div>
+      </div>
+
+      <div class="divider"></div>
+
+      <section id="attSessionBox" class="hidden">
+        <div class="row">
+          <h2 id="attSessionTitle">Sessão</h2>
+          <button id="btnSaveSession" class="btn btn-primary" type="button">Salvar chamada</button>
+        </div>
+
+        <div class="row" style="margin-top:10px">
+          <button id="btnAllPresent" class="btn btn-ghost" type="button">Marcar todos presentes</button>
+          <button id="btnAllAbsent" class="btn btn-ghost" type="button">Marcar todos faltaram</button>
+        </div>
+
+        <div id="attList" class="list"></div>
+
+        <div class="divider"></div>
+        <h2>Histórico (últimas 10 sessões)</h2>
+        <div id="attHistory" class="list"></div>
+      </section>
+
+      <section id="attEmptyHelp" class="muted">
+        Selecione uma turma e crie uma sessão para marcar presença.
+      </section>
+    </section>
+
+    <!-- Planos de aula -->
+    <section id="viewPlans" class="card hidden">
+      <div class="row">
+        <h1>Planos de aula</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <form id="formPlan" class="grid compact">
+        <div class="field">
+          <label>Turma</label>
+          <select required id="planClassSelect" name="classId"></select>
+        </div>
+        <div class="field">
+          <label>Data</label>
+          <input required type="date" name="date" />
+        </div>
+        <div class="field">
+          <label>Título</label>
+          <input required name="title" placeholder="Ex: Ritmo básico + exercício 1" />
+        </div>
+        <div class="field">
+          <label>Objetivos</label>
+          <textarea name="objectives" rows="3" placeholder="Ex: consolidar batida..."></textarea>
+        </div>
+        <div class="field">
+          <label>Atividades (passo a passo)</label>
+          <textarea name="activities" rows="4" placeholder="Ex: aquecimento, prática guiada..."></textarea>
+        </div>
+        <div class="field">
+          <label>Materiais / Repertório</label>
+          <textarea name="materials" rows="3" placeholder="Ex: música X, metrônomo..."></textarea>
+        </div>
+        <div class="field">
+          <label>Tarefa / Continuação (opcional)</label>
+          <textarea name="homework" rows="2" placeholder="Ex: praticar 10min/dia..."></textarea>
+        </div>
+
+        <button class="btn btn-primary" type="submit">Salvar plano</button>
+      </form>
+
+      <div class="divider"></div>
+      <h2>Planos recentes</h2>
+      <div id="plansList" class="list"></div>
+    </section>
+
+    <!-- Relatórios -->
+    <section id="viewReports" class="card hidden">
+      <div class="row">
+        <h1>Relatório por aluno</h1>
+        <button class="btn btn-ghost" data-back>Voltar</button>
+      </div>
+
+      <div class="grid compact">
+        <div class="field">
+          <label>Turma</label>
+          <select id="repClassSelect"></select>
+        </div>
+        <div class="field">
+          <label>Aluno</label>
+          <select id="repStudentSelect"></select>
+        </div>
+
+        <button id="btnGenerateReport" class="btn btn-primary" type="button">Gerar relatório</button>
+      </div>
+
+      <div class="divider"></div>
+      <div id="reportOutput" class="ai-output"></div>
+    </section>
+
     <!-- Nota rápida -->
     <section id="viewQuickNote" class="card hidden">
       <div class="row">
@@ -247,7 +378,7 @@
         <button class="btn btn-ghost" data-back>Voltar</button>
       </div>
 
-      <p class="muted">IA local: faz resumo e alertas simples a partir das suas notas (sem internet).</p>
+      <p class="muted">IA local: resumo, alertas e projeções simples a partir das notas (sem internet).</p>
 
       <div class="grid compact">
         <div class="field">
@@ -290,6 +421,6 @@
     </footer>
   </main>
 
-  <script src="./app.bundle.js?v=20" defer></script>
+  <script src="./app.bundle.js?v=21" defer></script>
 </body>
 </html>
