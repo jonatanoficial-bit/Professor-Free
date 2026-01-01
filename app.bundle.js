@@ -25,6 +25,12 @@
     return d.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
   }
 
+  function todayISO() {
+    const d = new Date();
+    const pad = (n) => String(n).padStart(2, "0");
+    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+  }
+
   function typeLabel(t) {
     return ({ evolution:"Evolução", need:"Necessidade", repertoire:"Repertório", plan:"Plano" }[t] || t);
   }
@@ -38,6 +44,9 @@
     schools: $("viewSchools"),
     classes: $("viewClasses"),
     students: $("viewStudents"),
+    attendance: $("viewAttendance"),
+    plans: $("viewPlans"),
+    reports: $("viewReports"),
     quickNote: $("viewQuickNote"),
     ai: $("viewAI"),
     teacherEdit: $("viewTeacherEdit"),
@@ -52,7 +61,7 @@
   // -------------------------
   // Storage (localStorage) — robusto e offline
   // -------------------------
-  const KEY = "teacher_assist_v1";
+  const KEY = "teacher_assist_v1"; // mantém para não perder dados antigos
 
   function loadState() {
     try {
@@ -73,22 +82,32 @@
 
   function ensureState() {
     const st = loadState();
-    if (st) return st;
+    if (st) {
+      // migração segura: garante novas coleções
+      st.schools = Array.isArray(st.schools) ? st.schools : [];
+      st.classes = Array.isArray(st.classes) ? st.classes : [];
+      st.students = Array.isArray(st.students) ? st.students : [];
+      st.notes = Array.isArray(st.notes) ? st.notes : [];
+      st.sessions = Array.isArray(st.sessions) ? st.sessions : [];
+      st.plans = Array.isArray(st.plans) ? st.plans : [];
+      saveState(st);
+      return st;
+    }
     const init = {
       teacher: null,
       schools: [],
       classes: [],
       students: [],
-      notes: []
+      notes: [],
+      sessions: [], // chamadas (sessões)
+      plans: []     // planos de aula
     };
     saveState(init);
     return init;
   }
 
   const DB = {
-    getTeacher() {
-      return ensureState().teacher;
-    },
+    getTeacher() { return ensureState().teacher; },
     setTeacher(data) {
       const st = ensureState();
       st.teacher = { ...st.teacher, ...data };
@@ -124,9 +143,7 @@
     },
 
     listStudents() { return ensureState().students.slice(); },
-    listStudentsByClass(classId) {
-      return ensureState().students.filter(s => s.classId === classId);
-    },
+    listStudentsByClass(classId) { return ensureState().students.filter(s => s.classId === classId); },
     addStudent({ name, classId, contact }) {
       const st = ensureState();
       const item = { id: uid("stu"), name, classId, contact: contact || "" };
@@ -142,14 +159,7 @@
 
     addNote({ type, classId, studentId, text }) {
       const st = ensureState();
-      const item = {
-        id: uid("note"),
-        type,
-        classId,
-        studentId: studentId || "",
-        text: text || "",
-        createdAt: Date.now()
-      };
+      const item = { id: uid("note"), type, classId, studentId: studentId || "", text: text || "", createdAt: Date.now() };
       st.notes.push(item);
       saveState(st);
       return item;
@@ -160,16 +170,88 @@
     },
     listNotesByClass(classId, limit=20) {
       const st = ensureState();
-      return st.notes
-        .filter(n => n.classId === classId)
-        .slice()
-        .sort((a,b)=>b.createdAt-a.createdAt)
-        .slice(0, limit);
+      return st.notes.filter(n=>n.classId===classId).slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0, limit);
+    },
+    listNotesByStudent(studentId, limit=40) {
+      const st = ensureState();
+      return st.notes.filter(n=>n.studentId===studentId).slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0, limit);
     },
 
-    exportAll() {
-      return ensureState();
+    // ---------- CHAMADA (SESSÕES) ----------
+    createOrGetSession({ classId, dateISO }) {
+      const st = ensureState();
+      const existing = st.sessions.find(s => s.classId === classId && s.dateISO === dateISO);
+      if (existing) return existing;
+
+      const students = st.students.filter(x => x.classId === classId);
+      const attendance = {};
+      students.forEach(s => attendance[s.id] = "present"); // padrão: presente
+      const session = {
+        id: uid("ses"),
+        classId,
+        dateISO,
+        createdAt: Date.now(),
+        attendance
+      };
+      st.sessions.push(session);
+      saveState(st);
+      return session;
     },
+    getLastSession(classId) {
+      const st = ensureState();
+      const sessions = st.sessions.filter(s => s.classId === classId).slice().sort((a,b)=>b.createdAt-a.createdAt);
+      return sessions[0] || null;
+    },
+    listSessionsByClass(classId, limit=10) {
+      const st = ensureState();
+      return st.sessions.filter(s=>s.classId===classId).slice().sort((a,b)=>b.createdAt-a.createdAt).slice(0, limit);
+    },
+    updateSession(sessionId, patch) {
+      const st = ensureState();
+      const i = st.sessions.findIndex(s => s.id === sessionId);
+      if (i < 0) return;
+      st.sessions[i] = { ...st.sessions[i], ...patch };
+      saveState(st);
+    },
+
+    // ---------- PLANOS ----------
+    addPlan({ classId, dateISO, title, objectives, activities, materials, homework }) {
+      const st = ensureState();
+      const plan = {
+        id: uid("plan"),
+        classId,
+        dateISO,
+        title,
+        objectives: objectives || "",
+        activities: activities || "",
+        materials: materials || "",
+        homework: homework || "",
+        createdAt: Date.now()
+      };
+      st.plans.push(plan);
+      saveState(st);
+      return plan;
+    },
+    listPlansByClass(classId, limit=20) {
+      const st = ensureState();
+      return st.plans
+        .filter(p => p.classId === classId)
+        .slice()
+        .sort((a,b)=> (b.dateISO||"").localeCompare(a.dateISO||"") || (b.createdAt-a.createdAt))
+        .slice(0, limit);
+    },
+    listLatestPlans(limit=20) {
+      const st = ensureState();
+      return st.plans.slice().sort((a,b)=> (b.dateISO||"").localeCompare(a.dateISO||"") || (b.createdAt-a.createdAt)).slice(0, limit);
+    },
+    deletePlan(planId) {
+      const st = ensureState();
+      st.plans = st.plans.filter(p => p.id !== planId);
+      saveState(st);
+    },
+
+    // ---------- Export / Import ----------
+    exportAll() { return ensureState(); },
     importAll(payload) {
       if (!payload || typeof payload !== "object") throw new Error("invalid");
       const normalized = {
@@ -177,7 +259,9 @@
         schools: Array.isArray(payload.schools) ? payload.schools : [],
         classes: Array.isArray(payload.classes) ? payload.classes : [],
         students: Array.isArray(payload.students) ? payload.students : [],
-        notes: Array.isArray(payload.notes) ? payload.notes : []
+        notes: Array.isArray(payload.notes) ? payload.notes : [],
+        sessions: Array.isArray(payload.sessions) ? payload.sessions : [],
+        plans: Array.isArray(payload.plans) ? payload.plans : []
       };
       saveState(normalized);
     }
@@ -199,17 +283,15 @@
     const counts = { evolution:0, need:0, repertoire:0, plan:0 };
     last30.forEach(n => { if (counts[n.type] !== undefined) counts[n.type]++; });
 
-    // “Saúde” simples: equilíbrio de registros e presença de plano
     const total = last30.length;
     const planRatio = total ? (counts.plan / total) : 0;
     const needRatio = total ? (counts.need / total) : 0;
     let health = 50;
-    health += Math.min(25, total);                 // mais registros = melhor
-    health += Math.round(planRatio * 20);          // ter plano ajuda
-    health -= Math.round(needRatio * 15);          // muitas “necessidades” sem evolução pode reduzir
+    health += Math.min(25, total);
+    health += Math.round(planRatio * 20);
+    health -= Math.round(needRatio * 15);
     health = Math.max(0, Math.min(100, health));
 
-    // Top necessidades por aluno
     const needMap = new Map();
     last14.filter(n => n.type === "need" && n.studentId).forEach(n => {
       needMap.set(n.studentId, (needMap.get(n.studentId) || 0) + 1);
@@ -222,7 +304,6 @@
         return { student: st?.name || "Aluno", count };
       });
 
-    // Tendência (muito simples)
     const last7 = notes.filter(n => n.createdAt >= now - 7*24*60*60*1000);
     const prev7 = notes.filter(n => n.createdAt >= now - 14*24*60*60*1000 && n.createdAt < now - 7*24*60*60*1000);
     const trend = last7.length > prev7.length ? "Subindo" : (last7.length < prev7.length ? "Caindo" : "Estável");
@@ -245,21 +326,39 @@
   }
 
   // -------------------------
-  // PWA (SW + install)
+  // PWA (Install)
   // -------------------------
   let deferredPrompt = null;
 
-  async function registerSW() {
-    if (!("serviceWorker" in navigator)) return;
-    try {
-      await navigator.serviceWorker.register("./service-worker.js", { scope: "./" });
-    } catch (e) {
-      console.warn("SW fail:", e);
+  // -------------------------
+  // Helpers de Select
+  // -------------------------
+  function fillClassSelect(selectEl, emptyText="Cadastre uma turma primeiro") {
+    const classes = DB.listClasses();
+    const schools = DB.listSchools();
+    if (!classes.length) {
+      selectEl.innerHTML = `<option value="">${esc(emptyText)}</option>`;
+      return false;
     }
+    selectEl.innerHTML = classes.map(c => {
+      const sch = schools.find(s => s.id === c.schoolId);
+      return `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(sch?.name || "Escola")}</option>`;
+    }).join("");
+    return true;
+  }
+
+  function fillSchoolSelect(selectEl, emptyText="Cadastre uma escola primeiro") {
+    const schools = DB.listSchools();
+    if (!schools.length) {
+      selectEl.innerHTML = `<option value="">${esc(emptyText)}</option>`;
+      return false;
+    }
+    selectEl.innerHTML = schools.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
+    return true;
   }
 
   // -------------------------
-  // Render
+  // Render: Dashboard
   // -------------------------
   async function renderDashboard() {
     const teacher = DB.getTeacher();
@@ -284,6 +383,9 @@
     }).join("") || `<div class="muted">Nenhuma nota ainda. Use “+ Nota rápida”.</div>`;
   }
 
+  // -------------------------
+  // Render: Schools
+  // -------------------------
   async function renderSchools() {
     const schools = DB.listSchools();
     const classes = DB.listClasses();
@@ -322,26 +424,19 @@
     });
   }
 
-  function fillSchoolSelect(selectEl) {
-    const schools = DB.listSchools();
-    if (!schools.length) {
-      selectEl.innerHTML = `<option value="">Cadastre uma escola primeiro</option>`;
-      return false;
-    }
-    selectEl.innerHTML = schools.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("");
-    return true;
-  }
-
+  // -------------------------
+  // Render: Classes
+  // -------------------------
   async function renderClasses() {
     const schools = DB.listSchools();
     const classes = DB.listClasses();
     const students = DB.listStudents();
 
-    const ok = fillSchoolSelect($("classSchoolSelect"));
+    fillSchoolSelect($("classSchoolSelect"));
 
     const list = $("classesList");
     if (!classes.length) {
-      list.innerHTML = `<div class="muted">${ok ? "Nenhuma turma ainda." : "Cadastre uma escola e depois uma turma."}</div>`;
+      list.innerHTML = `<div class="muted">${schools.length ? "Nenhuma turma ainda." : "Cadastre uma escola e depois uma turma."}</div>`;
       return;
     }
 
@@ -356,7 +451,8 @@
             <span class="badge"><strong>${count}</strong> alunos</span>
           </div>
           <div class="item-actions">
-            <button class="btn btn-ghost" data-open-quick="${esc(c.id)}">Modo aula</button>
+            <button class="btn btn-ghost" data-open-att="${esc(c.id)}">Chamada</button>
+            <button class="btn btn-ghost" data-open-quick="${esc(c.id)}">Nota rápida</button>
             <button class="btn btn-ghost" data-del-class="${esc(c.id)}">Excluir</button>
           </div>
         </div>
@@ -369,8 +465,16 @@
         showView("quickNote");
       });
     });
-    list.querySelectorAll("[data-del-class]").forEach(btn => {
+
+    list.querySelectorAll("[data-open-att]").forEach(btn => {
       btn.addEventListener("click", async () => {
+        await renderAttendance(btn.getAttribute("data-open-att"));
+        showView("attendance");
+      });
+    });
+
+    list.querySelectorAll("[data-del-class]").forEach(btn => {
+      btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-del-class");
         const st = DB.listStudents().filter(s => s.classId === id).length;
         if (st > 0) return showToast("Não excluí: há alunos na turma.");
@@ -381,22 +485,11 @@
     });
   }
 
-  function fillClassSelect(selectEl) {
-    const classes = DB.listClasses();
-    const schools = DB.listSchools();
-    if (!classes.length) {
-      selectEl.innerHTML = `<option value="">Cadastre uma turma primeiro</option>`;
-      return false;
-    }
-    selectEl.innerHTML = classes.map(c => {
-      const sch = schools.find(s => s.id === c.schoolId);
-      return `<option value="${esc(c.id)}">${esc(c.name)} — ${esc(sch?.name || "Escola")}</option>`;
-    }).join("");
-    return true;
-  }
-
+  // -------------------------
+  // Render: Students
+  // -------------------------
   async function renderStudents() {
-    const ok = fillClassSelect($("studentClassSelect"));
+    fillClassSelect($("studentClassSelect"));
 
     const q = ($("studentSearch").value || "").trim().toLowerCase();
     const students = DB.listStudents();
@@ -407,7 +500,7 @@
 
     const list = $("studentsList");
     if (!filtered.length) {
-      list.innerHTML = `<div class="muted">${ok ? "Nenhum aluno encontrado." : "Cadastre uma turma e depois alunos."}</div>`;
+      list.innerHTML = `<div class="muted">${classes.length ? "Nenhum aluno encontrado." : "Cadastre uma turma e depois alunos."}</div>`;
       return;
     }
 
@@ -422,6 +515,7 @@
             ${s.contact ? esc(s.contact) : "<span class='muted'>Sem contato</span>"}
           </div>
           <div class="item-actions">
+            <button class="btn btn-ghost" data-open-report="${esc(s.id)}">Relatório</button>
             <button class="btn btn-ghost" data-open-quick-student="${esc(s.id)}">Registrar</button>
             <button class="btn btn-ghost" data-del-student="${esc(s.id)}">Excluir</button>
           </div>
@@ -440,8 +534,19 @@
       });
     });
 
-    list.querySelectorAll("[data-del-student]").forEach(btn => {
+    list.querySelectorAll("[data-open-report]").forEach(btn => {
       btn.addEventListener("click", async () => {
+        const studentId = btn.getAttribute("data-open-report");
+        const st = DB.listStudents().find(x => x.id === studentId);
+        await renderReports(st?.classId || "");
+        if (st) $("repStudentSelect").value = st.id;
+        await generateStudentReport();
+        showView("reports");
+      });
+    });
+
+    list.querySelectorAll("[data-del-student]").forEach(btn => {
+      btn.addEventListener("click", () => {
         const id = btn.getAttribute("data-del-student");
         DB.deleteStudent(id);
         showToast("Aluno removido.");
@@ -450,6 +555,9 @@
     });
   }
 
+  // -------------------------
+  // Quick note
+  // -------------------------
   async function renderQuickNote(preselectClassId = "") {
     const classes = DB.listClasses();
     const schools = DB.listSchools();
@@ -507,6 +615,257 @@
     }).join("");
   }
 
+  // -------------------------
+  // Attendance (Chamada)
+  // -------------------------
+  let currentSessionId = null;
+
+  function statusLabel(s) {
+    return ({ present:"Presente", absent:"Faltou", late:"Atraso" }[s] || s);
+  }
+
+  function toggleStatus(current) {
+    if (current === "present") return "late";
+    if (current === "late") return "absent";
+    return "present";
+  }
+
+  async function renderAttendance(preselectClassId = "") {
+    const ok = fillClassSelect($("attClassSelect"));
+    $("attDate").value = todayISO();
+
+    if (!ok) {
+      $("attSessionBox").classList.add("hidden");
+      $("attEmptyHelp").classList.remove("hidden");
+      $("attEmptyHelp").textContent = "Cadastre uma turma e alunos para usar a chamada.";
+      return;
+    }
+
+    if (preselectClassId) $("attClassSelect").value = preselectClassId;
+
+    $("attSessionBox").classList.add("hidden");
+    $("attEmptyHelp").classList.remove("hidden");
+    $("attEmptyHelp").textContent = "Selecione uma turma e crie uma sessão para marcar presença.";
+    currentSessionId = null;
+  }
+
+  async function openSession(session) {
+    const classes = DB.listClasses();
+    const cls = classes.find(c => c.id === session.classId);
+    const students = DB.listStudentsByClass(session.classId);
+
+    currentSessionId = session.id;
+
+    $("attSessionTitle").textContent = `Sessão • ${cls?.name || "Turma"} • ${session.dateISO}`;
+    $("attSessionBox").classList.remove("hidden");
+    $("attEmptyHelp").classList.add("hidden");
+
+    // lista de alunos com status clicável
+    $("attList").innerHTML = students.map(st => {
+      const s = session.attendance?.[st.id] || "present";
+      return `
+        <div class="item">
+          <div class="att-row">
+            <div>
+              <div class="item-title">${esc(st.name)}</div>
+              <div class="item-sub">Toque para alternar: Presente → Atraso → Faltou</div>
+            </div>
+            <div class="att-actions">
+              <button class="btn btn-ghost" data-att-stu="${esc(st.id)}">${esc(statusLabel(s))}</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }).join("") || `<div class="muted">Sem alunos nessa turma.</div>`;
+
+    // bind toggles
+    $("attList").querySelectorAll("[data-att-stu]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const sid = btn.getAttribute("data-att-stu");
+        const st = DB.exportAll();
+        const ses = st.sessions.find(x => x.id === currentSessionId);
+        if (!ses) return;
+
+        const curr = ses.attendance?.[sid] || "present";
+        const next = toggleStatus(curr);
+        ses.attendance = ses.attendance || {};
+        ses.attendance[sid] = next;
+        saveState(st);
+
+        btn.textContent = statusLabel(next);
+      });
+    });
+
+    // histórico
+    const hist = DB.listSessionsByClass(session.classId, 10);
+    $("attHistory").innerHTML = hist.map(h => {
+      const students2 = DB.listStudentsByClass(h.classId);
+      const presentCount = students2.filter(s => (h.attendance?.[s.id] || "present") !== "absent").length;
+      const total = students2.length;
+      return `
+        <div class="item">
+          <div class="item-title">${esc(h.dateISO)}</div>
+          <div class="item-sub">${total ? `${presentCount}/${total} presentes (presente+atraso)` : "Sem alunos"}</div>
+        </div>
+      `;
+    }).join("") || `<div class="muted">Sem sessões ainda.</div>`;
+  }
+
+  function allAttendanceSet(value) {
+    const st = DB.exportAll();
+    const ses = st.sessions.find(x => x.id === currentSessionId);
+    if (!ses) return;
+
+    const students = st.students.filter(s => s.classId === ses.classId);
+    ses.attendance = ses.attendance || {};
+    students.forEach(s => ses.attendance[s.id] = value);
+    saveState(st);
+  }
+
+  // -------------------------
+  // Plans
+  // -------------------------
+  async function renderPlans(preselectClassId = "") {
+    const ok = fillClassSelect($("planClassSelect"), "Cadastre uma turma primeiro");
+    const classes = DB.listClasses();
+
+    if (!ok) {
+      $("plansList").innerHTML = `<div class="muted">Cadastre uma turma para criar planos.</div>`;
+      return;
+    }
+
+    if (preselectClassId) $("planClassSelect").value = preselectClassId;
+
+    const selectedClassId = $("planClassSelect").value || classes[0]?.id || "";
+    const plans = selectedClassId ? DB.listPlansByClass(selectedClassId, 20) : [];
+
+    $("plansList").innerHTML = plans.map(p => `
+      <div class="item">
+        <div class="item-title">${esc(p.dateISO)} • ${esc(p.title)}</div>
+        <div class="item-sub">
+          ${p.objectives ? `<strong>Objetivos:</strong> ${esc(p.objectives)}<br>` : ""}
+          ${p.activities ? `<strong>Atividades:</strong> ${esc(p.activities)}<br>` : ""}
+          ${p.materials ? `<strong>Materiais:</strong> ${esc(p.materials)}<br>` : ""}
+          ${p.homework ? `<strong>Tarefa:</strong> ${esc(p.homework)}<br>` : ""}
+        </div>
+        <div class="item-actions">
+          <button class="btn btn-ghost" data-del-plan="${esc(p.id)}">Excluir</button>
+        </div>
+      </div>
+    `).join("") || `<div class="muted">Nenhum plano ainda para esta turma.</div>`;
+
+    $("plansList").querySelectorAll("[data-del-plan]").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-del-plan");
+        DB.deletePlan(id);
+        showToast("Plano removido.");
+        renderPlans($("planClassSelect").value);
+      });
+    });
+  }
+
+  // -------------------------
+  // Reports
+  // -------------------------
+  async function renderReports(preselectClassId = "") {
+    const ok = fillClassSelect($("repClassSelect"), "Cadastre uma turma primeiro");
+    if (!ok) {
+      $("repStudentSelect").innerHTML = `<option value="">Cadastre turma e alunos</option>`;
+      $("reportOutput").innerHTML = `<div class="muted">Cadastre turma e alunos para gerar relatórios.</div>`;
+      return;
+    }
+
+    if (preselectClassId) $("repClassSelect").value = preselectClassId;
+
+    const classId = $("repClassSelect").value;
+    const students = DB.listStudentsByClass(classId);
+    $("repStudentSelect").innerHTML = students.map(s => `<option value="${esc(s.id)}">${esc(s.name)}</option>`).join("")
+      || `<option value="">Sem alunos</option>`;
+
+    $("reportOutput").innerHTML = `<div class="muted">Selecione aluno e clique em “Gerar relatório”.</div>`;
+  }
+
+  async function generateStudentReport() {
+    const classId = $("repClassSelect").value;
+    const studentId = $("repStudentSelect").value;
+    if (!classId || !studentId) return showToast("Selecione turma e aluno.");
+
+    const classes = DB.listClasses();
+    const cls = classes.find(c => c.id === classId);
+    const st = DB.listStudents().find(s => s.id === studentId);
+
+    const notes = DB.listNotesByStudent(studentId, 30);
+    const sessions = DB.listSessionsByClass(classId, 9999);
+
+    // presença do aluno nas sessões da turma
+    let present = 0, total = 0, absent = 0, late = 0;
+    sessions.forEach(ses => {
+      const status = ses.attendance?.[studentId];
+      if (!status) return;
+      total++;
+      if (status === "absent") absent++;
+      else if (status === "late") late++;
+      else present++;
+    });
+    const presRate = total ? Math.round(((present + late) / total) * 100) : 0;
+
+    const needs = notes.filter(n => n.type === "need").length;
+    const evol = notes.filter(n => n.type === "evolution").length;
+    const rep = notes.filter(n => n.type === "repertoire").length;
+    const plan = notes.filter(n => n.type === "plan").length;
+
+    const hint = [];
+    if (total && presRate < 70) hint.push("Presença abaixo de 70%: considerar contato/ajuste de agenda.");
+    if (needs > evol) hint.push("Mais necessidades que evolução: definir micro-metas e registrar progressos.");
+    if (rep === 0) hint.push("Sem repertório registrado: adicionar exercícios/músicas praticadas.");
+    if (!hint.length) hint.push("Bom acompanhamento. Continue registrando notas e chamadas.");
+
+    $("reportOutput").innerHTML = `
+      <div class="ai-box">
+        <h3>${esc(st?.name || "Aluno")} • ${esc(cls?.name || "Turma")}</h3>
+        <div class="item-sub">Gerado em ${esc(new Date().toLocaleString("pt-BR"))}</div>
+      </div>
+
+      <div class="ai-box">
+        <h3>Presença</h3>
+        <div class="item-sub">
+          Taxa: <strong>${presRate}%</strong><br>
+          Sessões registradas: <strong>${total}</strong><br>
+          Presentes: <strong>${present}</strong> • Atrasos: <strong>${late}</strong> • Faltas: <strong>${absent}</strong>
+        </div>
+      </div>
+
+      <div class="ai-box">
+        <h3>Notas (últimas ${Math.min(30, notes.length)} registradas)</h3>
+        <div class="item-sub">
+          Evolução: <strong>${evol}</strong><br>
+          Necessidade: <strong>${needs}</strong><br>
+          Repertório: <strong>${rep}</strong><br>
+          Plano: <strong>${plan}</strong>
+        </div>
+      </div>
+
+      <div class="ai-box">
+        <h3>Recomendações</h3>
+        <div class="item-sub">${hint.map(x => `• ${esc(x)}`).join("<br>")}</div>
+      </div>
+
+      <div class="ai-box">
+        <h3>Últimas notas</h3>
+        ${notes.length ? notes.map(n => `
+          <div class="item" style="margin-top:10px">
+            <div class="item-title">${esc(typeLabel(n.type))} • ${esc(fmtDate(n.createdAt))}</div>
+            <div class="item-sub">${esc(n.text)}</div>
+          </div>
+        `).join("") : `<div class="muted">Sem notas para este aluno.</div>`}
+      </div>
+    `;
+    showToast("Relatório gerado.");
+  }
+
+  // -------------------------
+  // AI view
+  // -------------------------
   async function renderAI() {
     const sel = $("aiClassSelect");
     const ok = fillClassSelect(sel);
@@ -591,8 +950,6 @@
   // Init + Bindings
   // -------------------------
   async function init() {
-    await registerSW();
-
     // Install prompt
     window.addEventListener("beforeinstallprompt", (e) => {
       e.preventDefault();
@@ -623,6 +980,9 @@
     $("goSchools")?.addEventListener("click", async () => { await renderSchools(); showView("schools"); });
     $("goClasses")?.addEventListener("click", async () => { await renderClasses(); showView("classes"); });
     $("goStudents")?.addEventListener("click", async () => { await renderStudents(); showView("students"); });
+    $("goAttendance")?.addEventListener("click", async () => { await renderAttendance(); showView("attendance"); });
+    $("goPlans")?.addEventListener("click", async () => { await renderPlans(); showView("plans"); });
+    $("goReports")?.addEventListener("click", async () => { await renderReports(); showView("reports"); });
     $("goQuickNote")?.addEventListener("click", async () => { await renderQuickNote(); showView("quickNote"); });
     $("goAI")?.addEventListener("click", async () => { await renderAI(); showView("ai"); });
 
@@ -639,7 +999,6 @@
 
       DB.setTeacher({ name, email, phone });
 
-      // cria escola inicial se informada
       if (schoolName) {
         const exists = DB.listSchools().some(s => s.name.toLowerCase() === schoolName.toLowerCase());
         if (!exists) DB.addSchool({ name: schoolName, notes: city ? `Cidade: ${city}` : "" });
@@ -752,21 +1111,91 @@
     // AI
     $("btnRunAI")?.addEventListener("click", onRunAI);
 
+    // ----------- Attendance bindings -----------
+    $("attClassSelect")?.addEventListener("change", () => {
+      currentSessionId = null;
+      $("attSessionBox").classList.add("hidden");
+      $("attEmptyHelp").classList.remove("hidden");
+      $("attEmptyHelp").textContent = "Selecione uma turma e crie uma sessão para marcar presença.";
+    });
+
+    $("btnCreateSession")?.addEventListener("click", () => {
+      const classId = $("attClassSelect").value;
+      if (!classId) return showToast("Selecione uma turma.");
+      const dateISO = $("attDate").value || todayISO();
+      const session = DB.createOrGetSession({ classId, dateISO });
+      openSession(session);
+      showToast("Sessão aberta.");
+    });
+
+    $("btnOpenLastSession")?.addEventListener("click", () => {
+      const classId = $("attClassSelect").value;
+      if (!classId) return showToast("Selecione uma turma.");
+      const last = DB.getLastSession(classId);
+      if (!last) return showToast("Nenhuma sessão ainda.");
+      openSession(last);
+    });
+
+    $("btnAllPresent")?.addEventListener("click", () => {
+      if (!currentSessionId) return showToast("Abra uma sessão primeiro.");
+      allAttendanceSet("present");
+      showToast("Todos presentes.");
+      const st = DB.exportAll();
+      openSession(st.sessions.find(s => s.id === currentSessionId));
+    });
+
+    $("btnAllAbsent")?.addEventListener("click", () => {
+      if (!currentSessionId) return showToast("Abra uma sessão primeiro.");
+      allAttendanceSet("absent");
+      showToast("Todos faltaram.");
+      const st = DB.exportAll();
+      openSession(st.sessions.find(s => s.id === currentSessionId));
+    });
+
+    $("btnSaveSession")?.addEventListener("click", () => {
+      if (!currentSessionId) return showToast("Nada para salvar.");
+      showToast("Chamada salva.");
+    });
+
+    // ----------- Plans bindings -----------
+    $("planClassSelect")?.addEventListener("change", () => renderPlans($("planClassSelect").value));
+
+    $("formPlan")?.addEventListener("submit", (ev) => {
+      ev.preventDefault();
+      const fd = new FormData(ev.target);
+      const classId = String(fd.get("classId")||"");
+      const dateISO = String(fd.get("date")||"");
+      const title = String(fd.get("title")||"").trim();
+      const objectives = String(fd.get("objectives")||"").trim();
+      const activities = String(fd.get("activities")||"").trim();
+      const materials = String(fd.get("materials")||"").trim();
+      const homework = String(fd.get("homework")||"").trim();
+
+      if (!classId) return showToast("Selecione uma turma.");
+      if (!dateISO) return showToast("Selecione a data.");
+      if (!title) return showToast("Título é obrigatório.");
+
+      DB.addPlan({ classId, dateISO, title, objectives, activities, materials, homework });
+      ev.target.reset();
+      showToast("Plano salvo.");
+      renderPlans(classId);
+    });
+
+    // ----------- Reports bindings -----------
+    $("repClassSelect")?.addEventListener("change", () => renderReports($("repClassSelect").value));
+    $("btnGenerateReport")?.addEventListener("click", generateStudentReport);
+
     // Start
     const teacher = DB.getTeacher();
     if (!teacher) showView("onboarding");
     else { await renderDashboard(); showView("dashboard"); }
 
-    showToast("Carregado ✅", 1000);
+    showToast("Carregado ✅", 900);
   }
 
-  // Escudo: se JS quebrar por algum motivo, mostra onboarding
-  window.addEventListener("error", () => {
-    try { showView("onboarding"); } catch {}
-  });
-  window.addEventListener("unhandledrejection", () => {
-    try { showView("onboarding"); } catch {}
-  });
+  // Escudo
+  window.addEventListener("error", () => { try { showView("onboarding"); } catch {} });
+  window.addEventListener("unhandledrejection", () => { try { showView("onboarding"); } catch {} });
 
   init();
 })();
