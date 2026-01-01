@@ -142,6 +142,7 @@ input:focus, select:focus, textarea:focus{
   border-color: rgba(255,122,0,.55);
   background: rgba(255,122,0,.12);
 }
+
 .toast{
   position: fixed; left: 50%; transform: translateX(-50%);
   bottom: 18px; z-index: 20;
@@ -156,6 +157,7 @@ input:focus, select:focus, textarea:focus{
   font-weight: 800;
 }
 .footer{ margin-top: 20px; text-align:center; color: var(--muted); font-size: 12px; padding: 18px 0 10px; }
+
 .ai-output .ai-box{
   background: rgba(0,0,0,.22);
   border:1px solid var(--border);
@@ -163,3 +165,11 @@ input:focus, select:focus, textarea:focus{
   padding: 12px;
   margin-top: 10px;
 }
+.ai-output h3{ margin:0 0 8px 0; font-size: 14px; }
+
+/* Chamada */
+.att-row{
+  display:flex; align-items:center; justify-content:space-between;
+  gap:10px; flex-wrap: wrap;
+}
+.att-actions{ display:flex; gap:8px; flex-wrap: wrap; }
